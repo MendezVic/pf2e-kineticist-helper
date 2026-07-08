@@ -9,7 +9,7 @@
 // chokes) and swap it into place only once it's complete. If the swap can't happen because
 // Foundry actually holds the pack open (a real file lock), the existing build is left intact and
 // we return false — the caller warns and the author closes Foundry to refresh.
-import { rmSync, mkdirSync, renameSync } from 'node:fs';
+import { existsSync, rmSync, mkdirSync, renameSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
@@ -17,17 +17,23 @@ export function packCompendium(name: string, inDir: string, packsDir: string): b
   const staging = join(packsDir, '.pack-staging'); // gitignored (packs/* except _source/)
   const tmpOut = join(staging, name);
   const dest = join(packsDir, name);
+  const localFvtt = join(process.cwd(), 'node_modules', '@foundryvtt', 'foundryvtt-cli', 'fvtt.mjs');
+  const command = existsSync(localFvtt) ? process.execPath : 'fvtt';
+  const args = existsSync(localFvtt)
+    ? [localFvtt, 'package', 'pack', name, '--in', inDir, '--out', staging]
+    : ['package', 'pack', name, '--in', inDir, '--out', staging];
   rmSync(staging, { recursive: true, force: true });
   mkdirSync(staging, { recursive: true });
   try {
-    execFileSync('fvtt', ['package', 'pack', name, '--in', inDir, '--out', staging], {
+    execFileSync(command, args, {
       stdio: 'inherit',
       cwd: dirname(packsDir),
     });
     rmSync(dest, { recursive: true, force: true }); // throws on Windows if Foundry holds it open
     renameSync(tmpOut, dest);
     return true;
-  } catch {
+  } catch (error) {
+    console.warn(`Unable to pack "${name}": ${(error as Error).message}`);
     return false;
   } finally {
     rmSync(staging, { recursive: true, force: true });

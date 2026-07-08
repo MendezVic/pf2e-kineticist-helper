@@ -1,0 +1,58 @@
+{
+  "_id": "khAuraFire000000",
+  "_key": "!items!khAuraFire000000",
+  "name": "Kineticist Element: Fire",
+  "type": "effect",
+  "img": "icons/magic/fire/beam-jet-stream-spiral-yellow.webp",
+  "system": {
+    "description": {
+      "value": "",
+      "gm": ""
+    },
+    "publication": {
+      "title": "",
+      "authors": "",
+      "license": "MIT",
+      "remaster": true
+    },
+    "rules": [],
+    "slug": "kineticist-element-fire",
+    "traits": {
+      "otherTags": [],
+      "value": []
+    },
+    "level": {
+      "value": 1
+    },
+    "duration": {
+      "unit": "unlimited",
+      "value": -1,
+      "expiry": "turn-start",
+      "sustained": false
+    },
+    "tokenIcon": {
+      "show": false
+    },
+    "badge": null,
+    "fromSpell": false,
+    "context": null,
+    "unidentified": false,
+    "start": {
+      "value": 0,
+      "initiative": null
+    },
+    "expired": false
+  },
+  "effects": [],
+  "flags": {
+    "pf2e-kineticist-helper": {
+      "generatedByKineticAura": true,
+      "element": "Fire"
+    }
+  },
+  "folder": null,
+  "sort": 300000,
+  "ownership": {
+    "default": 0
+  }
+}

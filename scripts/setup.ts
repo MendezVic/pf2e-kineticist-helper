@@ -1,26 +1,21 @@
 // Dev environment setup. Idempotent. Run with `npm run setup`.
-//   1. Personalize module.json — offer to fill the <your-org>/<your-name> placeholders
-//      `npm run init` couldn't resolve (auto-detected from git; skipped on the template).
-//   2. Find the Foundry data dir — detect per-platform, else ask for the path.
-//   3. Resolve the PF2e system source — detect, clone foundryvtt/pf2e, point at a
+//   1. Find the Foundry data dir — detect per-platform, else ask for the path.
+//   2. Resolve the PF2e system source — detect, clone foundryvtt/pf2e, point at a
 //      checkout, or skip (types also ship via the foundry-pf2e dep, so it's optional).
-//   4. Symlink references INTO the repo, then scaffold a *real* module dir in Foundry's
+//   3. Symlink references INTO the repo, then scaffold a *real* module dir in Foundry's
 //      modules/ whose entries symlink back to the repo (see scaffoldDevModule).
 // Resolved paths cache in .dev-paths.json (gitignored) so re-runs don't re-ask.
 // Flags: --reconfigure (ask again), --no-link (resolve+cache only), --yes (no prompts).
-import {
-  existsSync, symlinkSync, lstatSync, unlinkSync, readFileSync, writeFileSync, mkdirSync,
-} from 'node:fs';
-import { join, basename, dirname } from 'node:path';
+import { existsSync, symlinkSync, lstatSync, unlinkSync, readFileSync, writeFileSync, mkdirSync, copyFileSync, rmSync, statSync } from 'node:fs';
+import { join, basename, dirname, relative } from 'node:path';
 import { homedir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
-import { ownerFromOrigin, authorName, isValidOwner } from './git-identity.ts';
 
 const repo = process.cwd();
 const home = homedir();
-const ID = 'pf2e-module-template';
+const ID = readModuleId();
 
 const PF2E_REPO = 'https://github.com/foundryvtt/pf2e.git';
 const CONFIG = join(repo, '.dev-paths.json');
@@ -36,6 +31,17 @@ interface DevPaths {
 }
 
 const rl = interactive ? createInterface({ input: stdin, output: stdout }) : null;
+
+function readModuleId(): string {
+  try {
+    const manifest = JSON.parse(readFileSync(join(repo, 'module.json'), 'utf8')) as { id?: string };
+    if (manifest.id) return manifest.id;
+  } catch {
+    /* fall through to the repo name */
+  }
+
+  return basename(repo);
+}
 
 // Ctrl+D / closed stdin mid-prompt rejects with AbortError — treat it as "cancel", not a crash.
 async function prompt(line: string): Promise<string> {
@@ -85,7 +91,7 @@ function userDataDirs(): string[] {
   if (process.platform === 'darwin') base = join(home, 'Library/Application Support');
   else if (process.platform === 'win32') base = process.env.LOCALAPPDATA ?? join(home, 'AppData/Local');
   else base = process.env.XDG_DATA_HOME ?? join(home, '.local/share');
-  return ['FoundryVTT-v14', 'FoundryVTT'].map((n) => join(base, n));
+  return ['FoundryVTT-v14', 'FoundryVTT'].map(n => join(base, n));
 }
 
 // The configured data dir lives in Config/options.json's `dataPath` (which may point
@@ -173,35 +179,70 @@ async function resolvePf2eSource(cfg: DevPaths): Promise<string | undefined> {
   return undefined;
 }
 
-// Windows can't make plain dir symlinks without admin; junctions need no privilege.
-const symlinkType = process.platform === 'win32' ? 'junction' : undefined;
-
 // allowMissing lets us link dist/ before it's built — a dangling link that resolves once
 // `npm run build` (or the Vite dev server) produces it.
-function link(linkPath: string, target: string, allowMissing = false): void {
+type LinkKind = 'file' | 'dir';
+
+interface LinkOptions {
+  allowMissing?: boolean;
+  kind?: LinkKind;
+  replaceExisting?: boolean;
+}
+
+function inferredKind(target: string, fallback: LinkKind): LinkKind {
+  const st = statSync(target, { throwIfNoEntry: false });
+  return st?.isDirectory() ? 'dir' : st?.isFile() ? 'file' : fallback;
+}
+
+function targetForSymlink(linkPath: string, target: string, kind: LinkKind): string {
+  // Junctions require absolute targets. Other symlinks are relative so the scaffold
+  // survives moving the containing Foundry Data/repo folders together.
+  if (process.platform === 'win32' && kind === 'dir') return target;
+  const rel = relative(dirname(linkPath), target);
+  return rel || target;
+}
+
+function symlinkKind(kind: LinkKind): 'junction' | 'file' | undefined {
+  if (process.platform !== 'win32') return undefined;
+  return kind === 'dir' ? 'junction' : 'file';
+}
+
+function canCopyFileFallback(error: unknown, kind: LinkKind): boolean {
+  return process.platform === 'win32' && kind === 'file' && typeof error === 'object' && error !== null && 'code' in error && error.code === 'EPERM';
+}
+
+function link(linkPath: string, target: string, options: LinkOptions = {}): void {
+  const { allowMissing = false, kind: configuredKind, replaceExisting = false } = options;
   if (!allowMissing && !existsSync(target)) {
     console.log(`skip (missing target): ${basename(linkPath)} → ${target}`);
     return;
   }
+  const kind = configuredKind ?? inferredKind(target, 'dir');
   const st = lstatSync(linkPath, { throwIfNoEntry: false });
   if (st) {
     if (!st.isSymbolicLink()) {
-      console.log(`skip (exists, not a symlink): ${linkPath}`);
-      return;
+      if (!replaceExisting) {
+        console.log(`skip (exists, not a symlink): ${linkPath}`);
+        return;
+      }
+      rmSync(linkPath, { recursive: true, force: true });
+    } else {
+      unlinkSync(linkPath);
     }
-    unlinkSync(linkPath);
   }
-  symlinkSync(target, linkPath, symlinkType);
-  console.log(`linked ${basename(linkPath)} → ${target}`);
+  try {
+    symlinkSync(targetForSymlink(linkPath, target, kind), linkPath, symlinkKind(kind));
+    console.log(`linked ${basename(linkPath)} → ${target}`);
+  } catch (error) {
+    if (!canCopyFileFallback(error, kind)) throw error;
+    copyFileSync(target, linkPath);
+    console.log(`copied ${basename(linkPath)} from ${target} (Windows file symlinks need Developer Mode or admin)`);
+  }
 }
 
-// Dev install: a *real* module dir whose entries symlink back to the repo, NOT one symlink
-// pointing at the whole repo. The whole-repo form exposes node_modules/.git to Foundry's file
-// picker, makes the repo's module.json the one Foundry loads, and ships nothing on its own —
-// so any non-symlink install (a release, a copied folder) had no assets. Per-entry symlinks
-// keep live edits and the Vite proxy's HMR while matching the shape `npm run deploy` copies.
-// We link the content dirs (assets/lang/packs) + the manifest + dist; the TypeScript sources
-// under src/ stay out of the module.
+// Dev install: a *real* module dir whose entries symlink back to the repo, NOT one
+// symlink pointing at the whole repo. This keeps live edits and the Vite watcher while
+// matching the shape shipped in the release zip.
 function scaffoldDevModule(modulesDir: string): void {
   const dest = join(modulesDir, ID);
   const st = lstatSync(dest, { throwIfNoEntry: false });
@@ -212,71 +253,16 @@ function scaffoldDevModule(modulesDir: string): void {
     return;
   }
   mkdirSync(dest, { recursive: true });
-  link(join(dest, 'module.json'), join(repo, 'module.json'));
-  link(join(dest, 'dist'), join(repo, 'dist'), true);
-  link(join(dest, 'lang'), join(repo, 'lang'));
-  link(join(dest, 'packs'), join(repo, 'packs'));
-  link(join(dest, 'assets'), join(repo, 'assets'));
+  link(join(dest, 'module.json'), join(repo, 'module.json'), { kind: 'file', replaceExisting: true });
+  link(join(dest, 'dist'), join(repo, 'dist'), { allowMissing: true, kind: 'dir', replaceExisting: true });
+  link(join(dest, 'lang'), join(repo, 'lang'), { kind: 'dir', replaceExisting: true });
+  link(join(dest, 'packs'), join(repo, 'packs'), { kind: 'dir', replaceExisting: true });
+  link(join(dest, 'assets'), join(repo, 'assets'), { kind: 'dir', replaceExisting: true });
   console.log(`scaffolded dev module → ${dest}`);
-}
-
-const ORG_PLACEHOLDER = '<your-org>';
-const AUTHOR_PLACEHOLDER = '<your-name>';
-
-// init.ts deletes itself once it has run, so its presence means this is the un-initialized
-// template — the placeholders are intentional there and must not be filled in.
-async function resolveIdentity(): Promise<void> {
-  if (existsSync(join(repo, 'scripts', 'init.ts'))) return;
-  const manifestPath = join(repo, 'module.json');
-  if (!existsSync(manifestPath)) return;
-  const manifest = readFileSync(manifestPath, 'utf8');
-  const needsOrg = manifest.includes(ORG_PLACEHOLDER);
-  const needsAuthor = manifest.includes(AUTHOR_PLACEHOLDER);
-  if (!needsOrg && !needsAuthor) return;
-
-  const org = needsOrg ? ownerFromOrigin(repo) : undefined;
-  const author = needsAuthor ? authorName(repo) : undefined;
-
-  console.log('• module.json still has template placeholders:');
-  if (needsOrg) console.log(`    owner  ${ORG_PLACEHOLDER}  →  ${org ?? '(no origin remote)'}`);
-  if (needsAuthor) console.log(`    author ${AUTHOR_PLACEHOLDER}  →  ${author ?? '(git config user.name unset)'}`);
-
-  if (!interactive) {
-    console.log('  Re-run `npm run setup` interactively to fill them, or edit module.json.\n');
-    return;
-  }
-
-  let finalOrg = org;
-  if (needsOrg && !finalOrg) {
-    const typed = await ask('  GitHub owner for the module.json URLs (blank to skip):');
-    if (typed && isValidOwner(typed)) finalOrg = typed;
-    else if (typed) console.log(`  "${typed}" isn't a valid GitHub owner — skipping owner.`);
-  }
-  const finalAuthor = needsAuthor ? author || (await ask('  Author name for module.json (blank to skip):')) : undefined;
-
-  const changes = [
-    finalAuthor && `author = ${finalAuthor}`,
-    finalOrg && `owner = ${finalOrg}`,
-  ].filter(Boolean);
-  if (changes.length === 0) {
-    console.log('  Left as placeholders.\n');
-    return;
-  }
-  if (!(await confirm(`  Write ${changes.join(', ')} to module.json?`, true))) {
-    console.log('  Left as placeholders.\n');
-    return;
-  }
-  let updated = manifest;
-  if (finalOrg) updated = updated.replaceAll(ORG_PLACEHOLDER, finalOrg);
-  if (finalAuthor) updated = updated.replaceAll(AUTHOR_PLACEHOLDER, finalAuthor);
-  writeFileSync(manifestPath, updated);
-  console.log('  ✓ updated module.json\n');
 }
 
 const cfg = readConfig();
 console.log('Setting up the dev environment…\n');
-
-await resolveIdentity();
 
 const foundryData = await resolveFoundryData(cfg);
 const pf2eSource = await resolvePf2eSource(cfg);

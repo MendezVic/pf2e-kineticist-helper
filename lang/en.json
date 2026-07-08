@@ -1,5 +1,37 @@
 {
-  "pf2e-module-template": {
-    "title": "PF2e Module Template"
+  "pf2e-kineticist-helper": {
+    "settings": {
+      "debugLogging": {
+        "name": "Enable debug logging",
+        "hint": "Log kineticist aura detection, creation, cleanup, and combat sync activity to the browser console."
+      },
+      "turnStartReminders": {
+        "name": "Enable turn start reminders",
+        "hint": "Post chat reminders for Final Gate and Kinetic Pinnacle at the start of a kineticist's turn."
+      }
+    },
+    "chat": {
+      "turnStart": {
+        "title": "Kineticist Reminder",
+        "finalGate": "<strong>Final Gate</strong>: your kinetic aura is inactive. You can Channel Elements as a free action at the start of your turn.",
+        "kineticPinnacle": "<strong>Kinetic Pinnacle</strong>: your quickened action can only be used to Channel Elements, a 1-action Elemental Blast, or a 1-action stance impulse."
+      },
+      "channelElementsActivated": {
+        "title": "Kinetic Aura Activated",
+        "message": "Your kinetic aura is now active! You can use your remaining actions to cast <strong>1-action Elemental Blasts</strong> or <strong>1-action stance impulses</strong>."
+      },
+      "actions": {
+        "channelElements": "Channel Elements",
+        "elementalBlast": "{element} Elemental Blast",
+        "stanceImpulse": "For a 1-action stance impulse, use the stance from your sheet."
+      },
+      "channelElements": {
+        "alreadyActive": "Your kinetic aura is already active.",
+        "effectMissing": "Could not find PF2e's Kinetic Aura effect."
+      },
+      "elementalBlast": {
+        "auraRequired": "Channel Elements first: Elemental Blast requires your kinetic aura to be active."
+      }
+    }
   }
 }

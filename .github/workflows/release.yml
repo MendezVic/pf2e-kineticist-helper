@@ -36,7 +36,7 @@ jobs:
 
       - name: Build release zip
         run: |
-          zip -r pf2e-module-template.zip \
+          zip -r pf2e-kineticist-helper.zip \
             module.json LICENSE README.md dist lang packs assets \
             -x "packs/_source/*" \
             -x "packs/*/LOCK" -x "packs/*/LOG" -x "packs/*/LOG.old" -x "packs/*/*.log" \
@@ -46,6 +46,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            pf2e-module-template.zip
+            pf2e-kineticist-helper.zip
             module.json
           generate_release_notes: true

@@ -1,3 +1,66 @@
-.pf2e-module-template {
-  --pf2e-module-template-accent: #6b21a8;
+.pf2e-kineticist-helper {
+  --pf2e-kineticist-helper-accent: #6b21a8;
+}
+
+.kineticist-reminder {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.kineticist-reminder__section {
+  margin-bottom: 0.5rem;
+}
+
+.kineticist-reminder__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.kineticist-reminder__button {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border: 2px solid #888888;
+  background-color: rgba(107, 33, 168, 0.1);
+  color: inherit;
+  border-radius: 3px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.kineticist-reminder__button:hover {
+  background-color: rgba(107, 33, 168, 0.2);
+}
+
+.kineticist-reminder__button:active {
+  background-color: rgba(107, 33, 168, 0.3);
+}
+
+.kineticist-reminder__blasts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(1fr, 1fr));
+  gap: 0.5rem;
+}
+
+.kineticist-reminder__blast-button {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border: 2px solid #888888;
+  background-color: rgba(107, 33, 168, 0.1);
+  color: inherit;
+  border-radius: 3px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.kineticist-reminder__blast-button:hover {
+  background-color: rgba(107, 33, 168, 0.2);
+}
+
+.kineticist-reminder__blast-button:active {
+  background-color: rgba(107, 33, 168, 0.3);
 }

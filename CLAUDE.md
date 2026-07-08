@@ -1,8 +1,8 @@
-# pf2e-module-template — project rules
+# pf2e-kineticist-helper — project rules
 
 A Foundry VTT **Pathfinder 2e** module template. Hybrid: compendium content (`packs/`)
 plus a scripted esmodule (`src/`) built with TypeScript + Svelte 5 + Vite
-(`src/index.ts` → `dist/pf2e-module-template.{js,css}`). `module.json` is the manifest.
+(`src/index.ts` → `dist/pf2e-kineticist-helper.{js,css}`). `module.json` is the manifest.
 
 **The Foundry/PF2e API, compendium packs, Svelte-in-ApplicationV2, the Vite build, and
 multi-client sync live in the user-level `foundry-pf2e` skill** — consult it for any of
@@ -57,12 +57,12 @@ Code style: global `~/.claude/CLAUDE.md` — comment only the non-obvious *why*.
 
 ## This repo's specifics
 
-- Module id `pf2e-module-template`; flags, settings, the socket channel (`module.<id>`),
+- Module id `pf2e-kineticist-helper`; flags, settings, the socket channel (`module.<id>`),
   and pack names (`<id>.<pack>`) all key off it. Use `const MODULE_ID`.
 - Public API: `game.modules.get(MODULE_ID).api = {...}` (cast — `api` isn't typed on `Module`).
-- Strings: `lang/en.json` under `pf2e-module-template.*`; `game.i18n.localize/format`. No hard-coded strings.
+- Strings: `lang/en.json` under `pf2e-kineticist-helper.*`; `game.i18n.localize/format`. No hard-coded strings.
 - compatibility `minimum "14"`, `verified "14"`; MIT license. Author and the `url`/`manifest`/`download` org come from `npm run init` (committed as `<your-name>`/`<your-org>` placeholders until then).
-- Release: tag `vX.Y.Z` → `release.yml` stamps the version, type-checks, builds, publishes `module.json` + `pf2e-module-template.zip` (zip ships `dist lang packs assets` — must include the art).
+- Release: tag `vX.Y.Z` → `release.yml` stamps the version, type-checks, builds, publishes `module.json` + `pf2e-kineticist-helper.zip` (zip ships `dist lang packs assets` — must include the art).
 
 ## Gotchas
 

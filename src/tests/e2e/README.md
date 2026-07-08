@@ -1,8 +1,8 @@
 # Playwright e2e harness
 
 Browser-driven verification of the module against a **headless Foundry v14**. The vitest suite
-(`src/tests/unit/`) covers pure logic in isolation; these specs drive the real Svelte UI in a real
-Foundry and assert against live `game.*` state.
+(`src/tests/unit/`) covers pure logic in isolation; these specs exercise the built module in a real
+Foundry world and assert against live `game.*` state.
 
 Unlike the vitest tier, e2e is **opt-in**: it needs a locally licensed Foundry v14 and a
 migration-current pf2e world, so it can't run in vanilla CI. Vitest is the CI tier.
@@ -13,7 +13,7 @@ migration-current pf2e world, so it can't run in vanilla CI. Vitest is the CI ti
 playwright test
   ├─ webServer:  bash scripts/start-test-env.sh   → Foundry on :30005, --world=$TEST_WORLD
   ├─ globalSetup: src/tests/e2e/global-setup.ts       → join GM, ensure module enabled, fail loud
-  └─ specs:       *.spec.ts                            → drive the UI / public API, assert game.*
+  └─ specs:       *.spec.ts                            → drive the public API, assert game.*
 ```
 
 One service, not two. This repo's `npm run dev` is a *reverse proxy* in front of a separate
@@ -81,10 +81,8 @@ locally, so a stray Foundry left on a port gets silently reused. Guard rails:
 - Use the `gmPage` fixture from `fixtures/foundry-clients.ts` (worker-scoped GM login, module active).
 - Name created documents with the `__e2e_` prefix and delete them in `afterEach`. The world is
   shared — leave it as you found it.
-- Reach Foundry APIs with `page.evaluate(() => game.…)`; drive the UI with your app's **stable**
-  selectors (the ApplicationV2 element id, `data-*` hooks). The shipped `launch.spec.ts` is the
-  minimal example: it opens the app via the public API and asserts the window renders.
+- Reach Foundry APIs with `page.evaluate(() => game.…)`; prefer the module public API when possible,
+  for example `game.modules.get('pf2e-kineticist-helper').api.syncAllAuras()`.
 
-`launch.spec.ts` is example scaffolding — `npm run remove-example-files` deletes it along with
-`ExampleApp`. The plumbing (this dir's `global-setup.ts`, `fixtures/`, the configs, the scripts)
-stays. After stripping, write your first real spec here.
+The plumbing in this directory (`global-setup.ts`, `fixtures/`, the configs, and the scripts) stays.
+Write focused specs here for aura sync and future kineticist helper workflows.

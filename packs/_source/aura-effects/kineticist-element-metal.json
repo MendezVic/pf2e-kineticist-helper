@@ -1,0 +1,58 @@
+{
+  "_id": "khAuraMetal00000",
+  "_key": "!items!khAuraMetal00000",
+  "name": "Kineticist Element: Metal",
+  "type": "effect",
+  "img": "icons/commodities/metal/mail-chain-steel.webp",
+  "system": {
+    "description": {
+      "value": "",
+      "gm": ""
+    },
+    "publication": {
+      "title": "",
+      "authors": "",
+      "license": "MIT",
+      "remaster": true
+    },
+    "rules": [],
+    "slug": "kineticist-element-metal",
+    "traits": {
+      "otherTags": [],
+      "value": []
+    },
+    "level": {
+      "value": 1
+    },
+    "duration": {
+      "unit": "unlimited",
+      "value": -1,
+      "expiry": "turn-start",
+      "sustained": false
+    },
+    "tokenIcon": {
+      "show": false
+    },
+    "badge": null,
+    "fromSpell": false,
+    "context": null,
+    "unidentified": false,
+    "start": {
+      "value": 0,
+      "initiative": null
+    },
+    "expired": false
+  },
+  "effects": [],
+  "flags": {
+    "pf2e-kineticist-helper": {
+      "generatedByKineticAura": true,
+      "element": "Metal"
+    }
+  },
+  "folder": null,
+  "sort": 400000,
+  "ownership": {
+    "default": 0
+  }
+}
