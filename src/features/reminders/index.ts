@@ -1,6 +1,6 @@
 import { MODULE_ID } from '@/constants';
 import { CHAT_BUTTON_SELECTOR, FINAL_GATE, KINETIC_AURA, KINETIC_PINNACLE } from './constants';
-import { createTurnStartReminderMessage, executeChannelElements, executeElementalBlast } from './chat';
+import { createTurnStartReminderMessage, executeChannelElements, executeElementalBlast, sendChannelElementsActivatedMessage } from './chat';
 import { currentUserCanOwnReminder, isResponsibleReminderUser } from './permissions';
 import type { ActorLike, CombatLike, ItemLike, ReminderState } from './types';
 
@@ -23,6 +23,16 @@ export function registerReminderHooks(): void {
   Hooks.on('combatStart', queueTurnStartReminder);
   Hooks.on('updateCombat', queueTurnStartReminder);
   Hooks.on('updateCombatant', (combatant: any) => queueTurnStartReminder(combatant?.combat ?? game.combat));
+
+  Hooks.on('createItem', (item: any) => {
+    const actor = item?.parent;
+    if (!isCharacter(actor)) return;
+    if (!currentUserCanOwnReminder(actor)) return;
+    if (item?.type !== 'effect') return;
+    if (!String(item.name ?? '').toLowerCase().includes(KINETIC_AURA.toLowerCase())) return;
+
+    void sendChannelElementsActivatedMessage(actor);
+  });
 
   document.addEventListener('click', event => {
     const target = event.target instanceof HTMLElement ? event.target.closest(CHAT_BUTTON_SELECTOR) : null;

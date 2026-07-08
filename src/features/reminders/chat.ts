@@ -63,7 +63,7 @@ export async function executeElementalBlast(actor: ActorLike, element: string): 
   });
 }
 
-async function sendChannelElementsActivatedMessage(actor: ActorLike): Promise<void> {
+export async function sendChannelElementsActivatedMessage(actor: ActorLike): Promise<void> {
   const whisper = getPlayerOwnerIds(actor);
   if (!whisper.length) return;
 
