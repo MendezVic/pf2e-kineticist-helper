@@ -1,0 +1,51 @@
+{
+  "id": "pf2e-module-template",
+  "title": "PF2e Module Template",
+  "description": "A Pathfinder 2e Foundry VTT module template: compendium content plus a scripted esmodule with a Svelte 5 UI mounted in ApplicationV2.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "<your-name>"
+    }
+  ],
+  "esmodules": [
+    "dist/pf2e-module-template.js"
+  ],
+  "styles": [
+    "dist/pf2e-module-template.css"
+  ],
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
+  ],
+  "packs": [
+    {
+      "name": "macros",
+      "label": "PF2e Module Template Macros",
+      "path": "packs/macros",
+      "type": "Macro"
+    }
+  ],
+  "relationships": {
+    "systems": [
+      {
+        "id": "pf2e",
+        "type": "system",
+        "compatibility": {
+          "minimum": "8.0.0"
+        }
+      }
+    ]
+  },
+  "compatibility": {
+    "minimum": "14",
+    "verified": "14"
+  },
+  "url": "https://github.com/<your-org>/pf2e-module-template",
+  "manifest": "https://github.com/<your-org>/pf2e-module-template/releases/latest/download/module.json",
+  "download": "https://github.com/<your-org>/pf2e-module-template/releases/latest/download/pf2e-module-template.zip"
+}
