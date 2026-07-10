@@ -1,45 +1,27 @@
 import type { ActorLike } from './types';
 
 export function currentUserCanOwnReminder(actor: ActorLike): boolean {
-  return game.user?.isGM !== true && userCanOwnActor(game.user, actor);
+  return isCurrentReminderController(actor);
 }
 
 export function isResponsibleReminderUser(actor: ActorLike): boolean {
-  const candidates = getPlayerOwners(actor)
-    .filter((user) => user?.active !== false)
-    .sort((a, b) => String(a.id ?? '').localeCompare(String(b.id ?? '')));
-  const responsibleUser = candidates[0];
-
-  if (responsibleUser) return responsibleUser.id === game.user?.id;
-  return false;
+  return isCurrentReminderController(actor);
 }
 
 export function getPlayerOwnerIds(actor: ActorLike): string[] {
-  return getPlayerOwners(actor)
-    .map((user) => user?.id)
-    .filter((id): id is string => typeof id === 'string' && id.length > 0);
+  return isCurrentReminderController(actor) && typeof game.user?.id === 'string' ? [game.user.id] : [];
 }
 
-function userCanOwnActor(user: any, actor: ActorLike): boolean {
-  if (!user) return false;
-  if (user.id === game.user?.id && actor?.isOwner === true) return true;
+function isCurrentReminderController(actor: ActorLike): boolean {
+  if (!actor || !game.user?.active) return false;
 
-  if (typeof actor?.testUserPermission === 'function') {
-    try {
-      return Boolean(actor.testUserPermission(user, 'OWNER'));
-    } catch {
-      return false;
-    }
-  }
+  if (canvas.tokens?.controlled?.some((token: any) => token.actor?.uuid === actor.uuid)) return true;
 
-  return Boolean(user.isGM);
-}
+  if (!game.modules.get('pf2e-hud')?.active) return false;
 
-function getUsers(): any[] {
-  const users = game.users as any;
-  return Array.from(users?.values?.() ?? users ?? []);
-}
+  const selection = game.settings.get('pf2e-hud', 'persistent.selection');
+  if (selection === 'combat') return game.combat?.combatant?.actor?.uuid === actor.uuid;
+  if (selection !== 'manual') return false;
 
-function getPlayerOwners(actor: ActorLike): any[] {
-  return getUsers().filter((user) => user?.isGM !== true && userCanOwnActor(user, actor));
+  return game.settings.get('pf2e-hud', 'persistent.savedActor') === actor.uuid;
 }

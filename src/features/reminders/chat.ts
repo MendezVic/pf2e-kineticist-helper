@@ -1,6 +1,5 @@
 import { MODULE_ID } from '@/constants';
 import { getActorGates } from '@/features/auras';
-import { KINETIC_AURA_EFFECT_UUID } from './constants';
 import { getPlayerOwnerIds } from './permissions';
 import type { ActorLike, ReminderState } from './types';
 
@@ -30,22 +29,16 @@ export async function executeChannelElements(actor: ActorLike): Promise<void> {
     return;
   }
 
-  const source = await foundry.utils.fromUuid(KINETIC_AURA_EFFECT_UUID);
-  if (!source) {
-    ui.notifications.warn(game.i18n.localize(`${MODULE_ID}.chat.channelElements.effectMissing`));
+  const action = Array.from(actor?.items?.values?.() ?? actor?.items ?? []).find(
+    (item: any) => item?.type === 'action' && (item.slug === 'channel-elements' || item.system?.slug === 'channel-elements'),
+  ) as any;
+  if (!action?.uuid && !action?.id) {
+    await sendChannelElementsActivatedMessage(actor);
     return;
   }
 
-  const effect = source.toObject() as any;
-  delete effect._id;
-  effect._stats = {
-    ...(effect._stats ?? {}),
-    compendiumSource: KINETIC_AURA_EFFECT_UUID,
-    duplicateSource: KINETIC_AURA_EFFECT_UUID,
-  };
-
-  await actor.createEmbeddedDocuments('Item', [effect]);
-  await sendChannelElementsActivatedMessage(actor);
+  const message = await game.pf2e.rollItemMacro(action.uuid ?? action.id);
+  await message?.delete();
 }
 
 export async function executeElementalBlast(actor: ActorLike, element: string): Promise<void> {
@@ -64,9 +57,6 @@ export async function executeElementalBlast(actor: ActorLike, element: string): 
 }
 
 export async function sendChannelElementsActivatedMessage(actor: ActorLike): Promise<void> {
-  const whisper = getPlayerOwnerIds(actor);
-  if (!whisper.length) return;
-
   const sections: string[] = [];
   sections.push('<div class="kineticist-reminder">');
   sections.push(`<div class="kineticist-reminder__section">${game.i18n.localize(`${MODULE_ID}.chat.channelElementsActivated.message`)}</div>`);
@@ -77,7 +67,6 @@ export async function sendChannelElementsActivatedMessage(actor: ActorLike): Pro
     speaker: ChatMessage.getSpeaker({ actor }),
     flavor: game.i18n.localize(`${MODULE_ID}.chat.channelElementsActivated.title`),
     content: sections.join(''),
-    whisper,
     flags: {
       [MODULE_ID]: {
         reminder: 'channel-activated',

@@ -5,6 +5,7 @@ import { currentUserCanOwnReminder, isResponsibleReminderUser } from './permissi
 import type { ActorLike, CombatLike, ItemLike, ReminderState } from './types';
 
 const sentTurnReminders = new Set<string>();
+const executingReminderActions = new Set<string>();
 
 export type { ReminderState };
 
@@ -23,6 +24,14 @@ export function registerReminderHooks(): void {
   Hooks.on('combatStart', queueTurnStartReminder);
   Hooks.on('updateCombat', queueTurnStartReminder);
   Hooks.on('updateCombatant', (combatant: any) => queueTurnStartReminder(combatant?.combat ?? game.combat));
+  Hooks.on('preCreateChatMessage', (message: any) => {
+    if (!isChannelElementsActionMessage(message)) return;
+
+    const actor = game.actors?.get(message.speaker?.actor);
+    if (!actor || !currentUserCanOwnReminder(actor)) return;
+
+    return false;
+  });
 
   Hooks.on('createItem', (item: any) => {
     const actor = item?.parent;
@@ -79,7 +88,7 @@ export function clearSentTurnRemindersForTests(): void {
 function queueTurnStartReminder(combat: CombatLike = game.combat): void {
   globalThis.setTimeout(() => {
     void maybeSendTurnStartReminder(combat);
-  }, 0);
+  }, 250);
 }
 
 function isReminderEnabled(): boolean {
@@ -102,6 +111,11 @@ function getTurnReminderKey(combat: CombatLike, actor: ActorLike): string {
   const turn = String(combat?.turn ?? 0);
   const combatantId = String(combatant?.id ?? combat?.current?.combatantId ?? actor.id ?? actor.uuid ?? actor.name);
   return `${combatId}:${round}:${turn}:${combatantId}`;
+}
+
+function isChannelElementsActionMessage(message: any): boolean {
+  const rollOptions = message?.flags?.pf2e?.origin?.rollOptions;
+  return Array.isArray(rollOptions) && rollOptions.includes('origin:item:slug:channel-elements');
 }
 
 function isCharacter(actor: ActorLike): boolean {
@@ -136,13 +150,21 @@ async function handleReminderButton(button: HTMLElement): Promise<void> {
   const actor = (typeof actorUuid === 'string' ? await foundry.utils.fromUuid(actorUuid) : null) as ActorLike | null;
   if (!actor || !currentUserCanOwnReminder(actor)) return;
 
-  if (action === 'channel-elements') {
-    await executeChannelElements(actor);
-    return;
-  }
-
   const element = button.dataset[`${datasetKey(MODULE_ID)}Element`];
-  if (element) await executeElementalBlast(actor, element);
+  const actionKey = `${action}:${actorUuid}:${element ?? ''}`;
+  if (executingReminderActions.has(actionKey)) return;
+
+  executingReminderActions.add(actionKey);
+  try {
+    if (action === 'channel-elements') {
+      await executeChannelElements(actor);
+      return;
+    }
+
+    if (element) await executeElementalBlast(actor, element);
+  } finally {
+    executingReminderActions.delete(actionKey);
+  }
 }
 
 function datasetKey(value: string): string {

@@ -24,6 +24,7 @@ function makeActor(items: any[]): any {
 }
 
 function makeCombat(actor: any, turn = 0): any {
+  vi.stubGlobal('canvas', { tokens: { controlled: [{ actor }] } });
   return {
     id: 'combat-1',
     round: 1,
@@ -40,9 +41,10 @@ describe('kineticist turn reminders', () => {
     clearSentTurnRemindersForTests();
 
     vi.stubGlobal('game', {
-      user: { id: 'user-1', isGM: false },
+      user: { id: 'user-1', isGM: false, active: true },
       users: [{ id: 'user-1', isGM: false, active: true }],
       settings: { get: vi.fn(() => true) },
+      modules: { get: vi.fn(() => ({ active: false })) },
       i18n: {
         localize: vi.fn((key: string) => key),
         format: vi.fn((key: string, data: Record<string, string>) => {
@@ -124,41 +126,33 @@ describe('kineticist turn reminders', () => {
     );
   });
 
-  it('only lets the active player owner create private reminders', async () => {
+  it('lets an active Assistant GM controlling the token create a private reminder', async () => {
     const actor = makeActor([{ id: 'final-gate', name: 'Final Gate', type: 'feat' }]);
     actor.isOwner = false;
-    actor.testUserPermission = vi.fn((user: any) => ['gm', 'player'].includes(user.id));
     const mockGame = game as unknown as { user: any; users: any[] };
-    mockGame.users = [
-      { id: 'gm', isGM: true, active: true },
-      { id: 'player', isGM: false, active: true },
-    ];
-    mockGame.user = { id: 'gm', isGM: true };
+    mockGame.users = [{ id: 'gm', isGM: true, active: true }];
+    mockGame.user = { id: 'gm', isGM: true, active: true };
 
     await maybeSendTurnStartReminder(makeCombat(actor));
-
-    expect(ChatMessage.create).not.toHaveBeenCalled();
-
-    mockGame.user = { id: 'player', isGM: false };
-    await maybeSendTurnStartReminder(makeCombat(actor, 1));
 
     expect(ChatMessage.create).toHaveBeenCalledTimes(1);
     expect(ChatMessage.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        whisper: ['player'],
+        whisper: ['gm'],
       }),
     );
   });
 
-  it('does not fall back to the GM when no player owns the kineticist', async () => {
+  it('does not notify a user who is not controlling the kineticist', async () => {
     const actor = makeActor([{ id: 'final-gate', name: 'Final Gate', type: 'feat' }]);
     actor.isOwner = false;
-    actor.testUserPermission = vi.fn((user: any) => user.id === 'gm');
     const mockGame = game as unknown as { user: any; users: any[] };
     mockGame.users = [{ id: 'gm', isGM: true, active: true }];
-    mockGame.user = { id: 'gm', isGM: true };
+    mockGame.user = { id: 'gm', isGM: true, active: true };
 
-    await maybeSendTurnStartReminder(makeCombat(actor));
+    const combat = makeCombat(actor);
+    vi.stubGlobal('canvas', { tokens: { controlled: [] } });
+    await maybeSendTurnStartReminder(combat);
 
     expect(ChatMessage.create).not.toHaveBeenCalled();
   });
