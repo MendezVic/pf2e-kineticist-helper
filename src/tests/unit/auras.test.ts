@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ensureModuleAuras, getActorGates, parseElementFromAuraName } from '@/features/auras';
+import { ensureModuleAuras, getActorGates, parseElementFromAuraName, removeKineticistStances } from '@/features/auras';
 import { MODULE_ID } from '@/constants';
+import { removeAuraForOverflowDamageRoll } from '@/features/auras/overflow';
 
 function makeItem(data: any): any {
   return {
@@ -153,5 +154,54 @@ describe('kineticist aura helpers', () => {
     expect(actor.deletedIds).toEqual(expect.arrayContaining(['fire-duplicate', 'water-stale']));
     expect(actor.items.map((item: any) => item.id)).toContain('fire-keep');
     expect(actor.items.map((item: any) => item.id)).not.toEqual(expect.arrayContaining(['water-stale']));
+  });
+
+  it('removes Kinetic Aura as soon as an overflow damage roll is created', async () => {
+    const source = makeActor([{ id: 'kinetic-aura', type: 'effect', name: 'Effect: Kinetic Aura' }]);
+    source.documentName = 'Actor';
+    vi.stubGlobal('fromUuid', vi.fn(async () => source));
+
+    await removeAuraForOverflowDamageRoll(
+      {
+        flags: {
+          pf2e: {
+            damageRoll: { traits: ['fire', 'overflow'] },
+            context: { actor: 'Actor.source' },
+          },
+        },
+      },
+    );
+
+    expect(source.deletedIds).toEqual(['kinetic-aura']);
+  });
+
+  it('keeps Kinetic Aura for non-overflow damage rolls', async () => {
+    const source = makeActor([{ id: 'kinetic-aura', type: 'effect', name: 'Effect: Kinetic Aura' }]);
+    source.documentName = 'Actor';
+    vi.stubGlobal('fromUuid', vi.fn(async () => source));
+
+    await removeAuraForOverflowDamageRoll(
+      {
+        flags: {
+          pf2e: {
+            damageRoll: { traits: ['fire'] },
+            context: { actor: 'Actor.source' },
+          },
+        },
+      },
+    );
+
+    expect(source.deletedIds).toEqual([]);
+  });
+
+  it('removes kineticist stance effects without removing unrelated stances', async () => {
+    const actor = makeActor([
+      { id: 'thermal-nimbus', type: 'effect', name: 'Effect: Thermal Nimbus', system: { traits: { value: ['fire', 'impulse', 'stance'] } } },
+      { id: 'tiger-stance', type: 'effect', name: 'Effect: Tiger Stance', system: { traits: { value: ['stance'] } } },
+    ]);
+
+    await removeKineticistStances(actor);
+
+    expect(actor.deletedIds).toEqual(['thermal-nimbus']);
   });
 });

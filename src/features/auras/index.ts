@@ -1,22 +1,42 @@
 import { MODULE_ID } from '@/constants';
 import {
   actorHasRealKineticAura,
+  getActorItems,
   getActorGates,
   getAuraElement,
   getModuleAuraItems,
   hasModuleAuras,
   isActorInActiveCombat,
   isCharacter,
+  isKineticistStanceItem,
   isRealKineticAuraItem,
   parseElementFromAuraName,
 } from './detection';
 import { makeElementAuraEffect } from './effects';
+import { removeAuraForOverflowDamageRoll } from './overflow';
 import type { ActorLike, ItemLike, KineticistElement, KineticistHelperApi } from './types';
 
 const pendingAuraCreates = new Set<string>();
 
 export type { KineticistElement, KineticistHelperApi };
 export { getActorGates, parseElementFromAuraName };
+
+export async function removeKineticistStances(actor: ActorLike): Promise<void> {
+  if (!canModifyActor(actor)) return;
+
+  const stanceIds = getActorItems(actor)
+    .filter((item) => isKineticistStanceItem(item))
+    .map((item) => item.id)
+    .filter((id): id is string => typeof id === 'string');
+
+  if (!stanceIds.length) return;
+
+  try {
+    await actor.deleteEmbeddedDocuments('Item', stanceIds);
+  } catch (error) {
+    console.warn(`[${MODULE_ID}] Unable to remove Kineticist stances from actor "${actor.name}".`, error);
+  }
+}
 
 export function registerAuraSettings(): void {
   game.settings.register(MODULE_ID, 'debugLogging', {
@@ -30,6 +50,16 @@ export function registerAuraSettings(): void {
 }
 
 export function registerAuraHooks(): void {
+  Hooks.on('createChatMessage', async (message: any) => {
+    if (!isResponsibleGM()) return;
+
+    try {
+      await removeAuraForOverflowDamageRoll(message);
+    } catch (error) {
+      console.warn(`[${MODULE_ID}] Unable to remove Kinetic Aura after an overflow damage roll.`, error);
+    }
+  });
+
   Hooks.on('createItem', async (item: ItemLike) => {
     if (!isResponsibleGM()) return;
     if (!isRealKineticAuraItem(item)) return;
@@ -67,6 +97,7 @@ export function registerAuraHooks(): void {
       return;
     }
 
+    await removeKineticistStances(actor);
     await cleanupModuleAuras(actor);
   });
 

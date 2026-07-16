@@ -47,6 +47,14 @@ export function isRealKineticAuraItem(item: ItemLike): boolean {
   return name.includes('kinetic aura');
 }
 
+/** PF2e kineticist stances are effects with both the impulse and stance traits. */
+export function isKineticistStanceItem(item: ItemLike): boolean {
+  if (item?.type !== 'effect' || isModuleAuraItem(item)) return false;
+
+  const traits = getItemTraits(item);
+  return traits.includes('stance') && traits.includes('impulse');
+}
+
 export function actorHasRealKineticAura(actor: ActorLike): boolean {
   return getActorItems(actor).some((item) => isRealKineticAuraItem(item));
 }
@@ -79,6 +87,11 @@ export function getAuraFlag(item: ItemLike, key: string): unknown {
   }
 
   return item?.flags?.[MODULE_ID]?.[key] ?? item?._source?.flags?.[MODULE_ID]?.[key];
+}
+
+function getItemTraits(item: ItemLike): string[] {
+  const traits = item?.system?.traits?.value ?? item?.system?.traits ?? item?.traits ?? [];
+  return Array.from(traits as Iterable<unknown>).map((trait) => String(trait).toLowerCase());
 }
 
 export function normalizeElement(value: unknown): KineticistElement | null {
