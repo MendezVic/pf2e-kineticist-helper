@@ -2,7 +2,7 @@
   "id": "pf2e-kineticist-helper",
   "title": "PF2e Kineticist Helper",
   "description": "Helpers for PF2e kineticists, starting with automatic elemental aura tag effects for Automated Animations VFX.",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "license": "MIT",
   "authors": [
     {

@@ -1,14 +1,12 @@
 import { MODULE_ID } from '@/constants';
 import {
   actorHasRealKineticAura,
-  getActorItems,
   getActorGates,
   getAuraElement,
   getModuleAuraItems,
   hasModuleAuras,
   isActorInActiveCombat,
   isCharacter,
-  isKineticistStanceItem,
   isRealKineticAuraItem,
   parseElementFromAuraName,
 } from './detection';
@@ -17,25 +15,18 @@ import { removeAuraForOverflowDamageRoll } from './overflow';
 import type { ActorLike, ItemLike, KineticistElement, KineticistHelperApi } from './types';
 
 const pendingAuraCreates = new Set<string>();
+const pendingAuraCleanups = new Set<string>();
 
 export type { KineticistElement, KineticistHelperApi };
 export { getActorGates, parseElementFromAuraName };
 
-export async function removeKineticistStances(actor: ActorLike): Promise<void> {
-  if (!canModifyActor(actor)) return;
-
-  const stanceIds = getActorItems(actor)
-    .filter((item) => isKineticistStanceItem(item))
-    .map((item) => item.id)
-    .filter((id): id is string => typeof id === 'string');
-
-  if (!stanceIds.length) return;
-
-  try {
-    await actor.deleteEmbeddedDocuments('Item', stanceIds);
-  } catch (error) {
-    console.warn(`[${MODULE_ID}] Unable to remove Kineticist stances from actor "${actor.name}".`, error);
+export async function cleanupAfterKineticAuraRemoval(actor: ActorLike): Promise<void> {
+  if (actorHasRealKineticAura(actor)) {
+    debugLog('At least one PF2e aura remains; keeping module VFX tags active.', actor.name);
+    return;
   }
+
+  await cleanupModuleAuras(actor);
 }
 
 export function registerAuraSettings(): void {
@@ -80,7 +71,7 @@ export function registerAuraHooks(): void {
     await ensureModuleAuras(actor);
   });
 
-  Hooks.on('deleteItem', async (item: ItemLike) => {
+  Hooks.on('deleteItem', (item: ItemLike) => {
     if (!isResponsibleGM()) return;
     if (!isRealKineticAuraItem(item)) return;
 
@@ -92,13 +83,7 @@ export function registerAuraHooks(): void {
       effectId: item.id,
     });
 
-    if (actorHasRealKineticAura(actor)) {
-      debugLog('At least one PF2e aura remains; keeping module VFX tags active.', actor.name);
-      return;
-    }
-
-    await removeKineticistStances(actor);
-    await cleanupModuleAuras(actor);
+    scheduleAuraRemovalCleanup(actor);
   });
 
   Hooks.on('combatStart', syncAurasFromCombatHook);
@@ -108,6 +93,18 @@ export function registerAuraHooks(): void {
   Hooks.on('createCombatant', syncAurasFromCombatHook);
   Hooks.on('deleteCombatant', syncAurasFromCombatHook);
   Hooks.on('updateCombatant', syncAurasFromCombatHook);
+}
+
+function scheduleAuraRemovalCleanup(actor: ActorLike): void {
+  const actorKey = String(actor.uuid ?? actor.id ?? actor.name);
+  if (pendingAuraCleanups.has(actorKey)) return;
+
+  pendingAuraCleanups.add(actorKey);
+  setTimeout(() => {
+    void cleanupAfterKineticAuraRemoval(actor)
+      .catch((error) => console.warn(`[${MODULE_ID}] Unable to clean up after Kinetic Aura removal.`, error))
+      .finally(() => pendingAuraCleanups.delete(actorKey));
+  }, 0);
 }
 
 export async function ensureModuleAuras(actor: ActorLike): Promise<void> {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ensureModuleAuras, getActorGates, parseElementFromAuraName, removeKineticistStances } from '@/features/auras';
+import { ensureModuleAuras, getActorGates, parseElementFromAuraName } from '@/features/auras';
 import { MODULE_ID } from '@/constants';
 import { removeAuraForOverflowDamageRoll } from '@/features/auras/overflow';
 
@@ -194,14 +194,4 @@ describe('kineticist aura helpers', () => {
     expect(source.deletedIds).toEqual([]);
   });
 
-  it('removes kineticist stance effects without removing unrelated stances', async () => {
-    const actor = makeActor([
-      { id: 'thermal-nimbus', type: 'effect', name: 'Effect: Thermal Nimbus', system: { traits: { value: ['fire', 'impulse', 'stance'] } } },
-      { id: 'tiger-stance', type: 'effect', name: 'Effect: Tiger Stance', system: { traits: { value: ['stance'] } } },
-    ]);
-
-    await removeKineticistStances(actor);
-
-    expect(actor.deletedIds).toEqual(['thermal-nimbus']);
-  });
 });
