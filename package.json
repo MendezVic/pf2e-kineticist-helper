@@ -1,6 +1,6 @@
 {
   "name": "pf2e-kineticist-helper",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "type": "module",
   "description": "PF2e Foundry VTT helpers for kineticist automation and aura VFX tags.",
